@@ -15,22 +15,19 @@ class GraphBasics
 
     public static void Main()
     {
-        using var reader = new StreamReader(Console.OpenStandardInput());
-        using var writer = new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true };
-
-        string inputLine = reader.ReadLine();
+        string inputLine = Console.ReadLine();
         if (string.IsNullOrEmpty(inputLine))
         {
-            writer.WriteLine("No input provided.");
+            Console.WriteLine("No input provided.");
             return;
         }
 
         int d = int.Parse(inputLine);
 
-        inputLine = reader.ReadLine();
+        inputLine = Console.ReadLine();
         if (string.IsNullOrEmpty(inputLine))
         {
-            writer.WriteLine("No edge data provided.");
+            Console.WriteLine("No edge data provided.");
             return;
         }
 
@@ -41,15 +38,15 @@ class GraphBasics
 
         for (int i = 0; i < e; i++)
         {
-            tokens = reader.ReadLine().Split().Select(int.Parse).ToArray();
+            tokens = Console.ReadLine().Split().Select(int.Parse).ToArray();
             graph[tokens[0]].Add(tokens[1]);
-            if (d == 0) // If the graph is non-directed
+            if (d == 0) 
             {
                 graph[tokens[1]].Add(tokens[0]);
             }
         }
 
-        PerformBFSDFSAndArticulation(writer, n);
+        PerformBFSDFSAndArticulation(n);
     }
 
     static void InitializeGlobals(int n)
@@ -65,32 +62,80 @@ class GraphBasics
         discoveryTime = new int[n + 1];
         lowTime = new int[n + 1];
         parent = new int[n + 1];
-        Array.Fill(parent, -1); // Initialize all parents to -1
+        Array.Fill(parent, -1); 
         time = 0;
     }
 
-    static void PerformBFSDFSAndArticulation(StreamWriter writer, int n)
+    static void PerformBFSDFSAndArticulation(int n)
     {
-        // BFS
-        List<int> bfsResult = BFS(1);
-        writer.WriteLine("BFS:");
-        writer.WriteLine(string.Join(" ", bfsResult));
+        var bfsParents = BFS(1);
+        Console.WriteLine("BFS:");
+        var bfsResult = bfsParents.Keys.ToList();
+        Console.WriteLine(string.Join(" ", bfsResult));
+        Console.WriteLine("BFS Paths:");
+        foreach (var node in bfsResult)
+        {
+            var path = GetPath(bfsParents, 1, node);
+            Console.WriteLine(string.Join(" ", path));
+        }
 
-        // DFS
-        Array.Clear(visited, 0, visited.Length); // Clear visited for DFS
+        Array.Clear(visited, 0, visited.Length);
         List<int> dfsResult = new List<int>();
         DFS(1, dfsResult);
-        writer.WriteLine("DFS:");
-        writer.WriteLine(string.Join(" ", dfsResult));
+        Console.WriteLine("DFS:");
+        Console.WriteLine(string.Join(" ", dfsResult));
 
-        // Articulation Points
-        Array.Clear(visited, 0, visited.Length); // Clear visited for articulation points
+        Console.WriteLine("DFS Paths:");
+        foreach (var node in graph.Keys.OrderBy(k => k))
+        {
+            var path = GetPath(node);
+            if (path.Count > 0) 
+            {
+                Console.WriteLine(string.Join(" ", path));
+            }
+        }
+
+        Array.Clear(visited, 0, visited.Length); 
+        var connectedComponents = FindConnectedComponents(n);
+        Console.WriteLine("Connected Components:");
+        for (int i = 0; i < connectedComponents.Count; i++)
+        {
+            Console.WriteLine("C" + (i + 1) + ": " + string.Join(" ", connectedComponents[i]));
+        }
+
+        Array.Clear(visited, 0, visited.Length); 
         FindArticulationPoints(1);
-        writer.WriteLine("Articulation Vertices:");
-        writer.WriteLine(string.Join(" ", articulationPoints.Distinct()));
+        Console.WriteLine("Articulation Vertices:");
+        Console.WriteLine(string.Join(" ", articulationPoints.Distinct()));
     }
 
-    private static void FindArticulationPoints(int u, int p = -1)
+    static List<int> GetPath(int node)
+    {
+        var path = new List<int>();
+        while (node != -1) 
+        {
+            path.Add(node);
+            node = parent[node];
+        }
+        path.Reverse();
+        return path;
+    }
+
+    static List<int> GetPath(Dictionary<int, int> parents, int start, int end)
+    {
+        var path = new List<int>();
+        int current = end;
+        while (current != start)
+        {
+            path.Add(current);
+            current = parents[current];
+        }
+        path.Add(start);
+        path.Reverse();
+        return path;
+    }
+
+    static void FindArticulationPoints(int u, int p = -1)
     {
         visited[u] = true;
         discoveryTime[u] = lowTime[u] = ++time;
@@ -123,7 +168,7 @@ class GraphBasics
         }
     }
 
-    private static void DFS(int node, List<int> dfsResult)
+    static void DFS(int node, List<int> dfsResult)
     {
         visited[node] = true;
         dfsResult.Add(node);
@@ -132,22 +177,23 @@ class GraphBasics
         {
             if (!visited[neighbor])
             {
+                parent[neighbor] = node; 
                 DFS(neighbor, dfsResult);
             }
         }
     }
 
-    static List<int> BFS(int start)
+    static Dictionary<int, int> BFS(int start)
     {
         var queue = new Queue<int>();
-        var result = new List<int>();
+        var parents = new Dictionary<int, int>(); 
         visited[start] = true;
         queue.Enqueue(start);
+        parents[start] = -1; 
 
         while (queue.Count > 0)
         {
             int node = queue.Dequeue();
-            result.Add(node);
 
             foreach (var neighbor in graph[node])
             {
@@ -155,10 +201,30 @@ class GraphBasics
                 {
                     visited[neighbor] = true;
                     queue.Enqueue(neighbor);
+                    parents[neighbor] = node; 
                 }
             }
         }
 
-        return result;
+        return parents;
+    }
+
+    static List<List<int>> FindConnectedComponents(int numberOfNodes)
+    {
+        var connectedComponents = new List<List<int>>();
+        visited = new bool[numberOfNodes + 1]; 
+
+        for (int node = 1; node <= numberOfNodes; node++)
+        {
+            if (!visited[node])
+            {
+                var component = new List<int>();
+                DFS(node, component); 
+                component.Sort(); 
+                connectedComponents.Add(component);
+            }
+        }
+
+        return connectedComponents;
     }
 }
